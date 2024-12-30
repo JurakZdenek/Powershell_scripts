@@ -1,0 +1,61 @@
+#
+# Skript nahrazuje "." za "-" v nazvu souboru, pritom nezmeni priponu souboru.
+#
+#
+# Definuj složku, kterou chceš prohledat
+$folderPath = ".\in"
+$logFile = ".\log.txt"
+
+# Počítadla
+$renamedCount = 0
+$unchangedCount = 0
+$failedCount = 0
+$failedFiles = @()
+
+# Otevření logovacího souboru a zápis hlavičky
+"Log přejmenování souborů - $(Get-Date)" | Out-File -FilePath $logFile -Encoding UTF8
+"=========================================" | Out-File -FilePath $logFile -Encoding UTF8 -Append
+
+# Získání všech souborů ve složce
+Get-ChildItem -Path $folderPath -File | ForEach-Object {
+    try {
+        # Oddělení názvu souboru od přípony
+        $fileName = $_.BaseName
+        $fileExtension = $_.Extension
+
+        # Nahrazení teček v názvu souboru pomlčkami
+        $newFileName = $fileName -replace '\.', '-'
+
+        # Složení nového názvu souboru s původní příponou
+        $newFullPath = Join-Path -Path $folderPath -ChildPath ($newFileName + $fileExtension)
+
+        if ($_.FullName -ne $newFullPath) {
+            # Přejmenování souboru
+            Rename-Item -Path $_.FullName -NewName $newFullPath
+            $renamedCount++
+            "Přejmenován: $($_.Name) -> $(Split-Path $newFullPath -Leaf)" | Out-File -FilePath $logFile -Encoding UTF8 -Append
+        } else {
+            $unchangedCount++
+        }
+    } catch {
+        # Zpracování chyby
+        $failedCount++
+        $failedFiles += $_.FullName
+        "Selhalo přejmenování: $($_.FullName) - Chyba: $($_.Exception.Message)" | Out-File -FilePath $logFile -Encoding UTF8 -Append
+    }
+}
+
+# Zápis souhrnných informací do logu
+"" | Out-File -FilePath $logFile -Encoding UTF8 -Append
+"Souhrn:" | Out-File -FilePath $logFile -Encoding UTF8 -Append
+"Počet přejmenovaných souborů: $renamedCount" | Out-File -FilePath $logFile -Encoding UTF8 -Append
+"Počet nezměněných souborů: $unchangedCount" | Out-File -FilePath $logFile -Encoding UTF8 -Append
+"Počet selhání: $failedCount" | Out-File -FilePath $logFile -Encoding UTF8 -Append
+
+# Pokud selhala nějaká přejmenování, vypiš je do logu
+if ($failedCount -gt 0) {
+    "Seznam souborů, u kterých přejmenování selhalo:" | Out-File -FilePath $logFile -Encoding UTF8 -Append
+    $failedFiles | Out-File -FilePath $logFile -Encoding UTF8 -Append
+}
+
+Write-Host "Skript dokončen. Podívej se na soubor log.txt pro podrobnosti."
